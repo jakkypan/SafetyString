@@ -119,7 +119,7 @@ public class SafeStringTransform extends Transform {
                             dynamicCodeDir = parseDir(fileOutput.absolutePath)
                         }
                         if (isIncremental && !fileInput.getName().endsWith('BuildConfig.class')) {
-                            Status status = fileInput.getValue()
+                            Status status = fileInput.getStatus()
                             switch (status) {
                                 case Status.NOTCHANGED:
                                     break
