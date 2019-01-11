@@ -1,0 +1,19 @@
+apply plugin: 'groovy'
+
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+    implementation 'com.android.tools.build:gradle:3.2.1'
+    implementation 'commons-io:commons-io:2.6'
+
+    //ASM相关
+    implementation 'org.ow2.asm:asm:6.0'
+    implementation 'org.ow2.asm:asm-util:6.0'
+    implementation 'org.ow2.asm:asm-commons:6.0'
+}
+
+repositories {
+    maven {
+        url "http://maven.oa.com/nexus/content/groups/androidbuild/"
+    }
+}
