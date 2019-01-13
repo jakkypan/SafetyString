@@ -29,20 +29,11 @@ public class Test {
 //        doAdd();
 //        traceCvExample();
 //        checkClassAdapterExample();
-//        asmifierExample();
-
-        String s = "abb121的c";
-        Charset charSet = Charset.forName("utf-8");
-        byte[] keyBytes = s.getBytes(charSet);
-
-        charSet = Charset.forName("utf-16");
-        keyBytes = s.getBytes(charSet);
-
-        int i = 10;
+        asmifierExample();
     }
 
     public static void asmifierExample() throws IOException {
-        ClassReader cr = new ClassReader("java/lang/Runnable");
+        ClassReader cr = new ClassReader("giant/test/T");
         ClassWriter cw = new ClassWriter(0);
         TraceClassVisitor cv = new TraceClassVisitor(cw, new ASMifier(), new PrintWriter(System.out));
         cr.accept(cv, 0);

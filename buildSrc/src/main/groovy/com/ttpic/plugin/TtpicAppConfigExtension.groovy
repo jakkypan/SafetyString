@@ -18,4 +18,9 @@ public class TtpicAppConfigExtension {
      * 加解密的实现类，为了可扩展，这里可以传入实现类
      */
     String implementation
+
+    /**
+     * 是否进行Function打时间点
+     */
+    boolean needtime = false
 }

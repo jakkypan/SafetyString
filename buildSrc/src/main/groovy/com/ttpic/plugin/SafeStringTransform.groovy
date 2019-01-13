@@ -26,28 +26,35 @@ public class SafeStringTransform extends Transform {
     String mKey
     String mImplementation
     String[] mSensitives
+    boolean mNeedTime
 
     List<File> filelist = new ArrayList<>()
+    def applicationId
 
     SafeStringTransform(Project project) {
         this.project = project
 
         // 读取extend配置信息
         project.afterEvaluate {
+            applicationId = project.extensions.getByName("android").defaultConfig.applicationId.toString().replaceAll("\\.", "/")
             mKey = project.ttpicextend.key
             mImplementation = project.ttpicextend.implementation
             mSensitives = project.ttpicextend.sensitives
+            mNeedTime = project.ttpicextend.needtime
 
             if (mKey == null || mKey.length() == 0) {
-                throw new IllegalArgumentException("Miss key config")
+//                throw new IllegalArgumentException("Miss key config")
+                mKey = 'key'
             }
             if (mImplementation == null || mImplementation.length() == 0) {
-                throw new IllegalArgumentException("Miss implementation config")
+//                throw new IllegalArgumentException("Miss implementation config")
+                mImplementation = 'com.ttpic.plugin.XorEncryption'
             }
 
             println "mKey: $mKey"
             println "mImplementation: $mImplementation"
             println "mSensitives: $mSensitives"
+            println "mNeedTime: $mNeedTime"
         }
     }
 
@@ -56,8 +63,6 @@ public class SafeStringTransform extends Transform {
         println "enter transform process..."
 
         String dynamicCodeDir = ""
-        def originBuildConfigFile = ""
-        def revisedBuildConfigFile = ""
 
         // Transform的inputs有两种类型，一种是目录，一种是jar包
         Collection<TransformInput> inputs = transformInvocation.getInputs()
@@ -106,49 +111,56 @@ public class SafeStringTransform extends Transform {
                         Format.DIRECTORY)
                 FileUtils.mkdirs(destDir)
                 // 遍历每个源文件
-                dirInputs.each { dirInput ->
-//                    if (destDir.exists()) {
-//                        destDir.deleteDir()
-//                    }
-
-                    getFileList(dirInput.getFile())
-                    for (File fileInput : filelist) {
-                        File fileOutput = new File(fileInput.getAbsolutePath().replace(dirInput.file.getAbsolutePath(), destDir.getAbsolutePath()))
-                        FileUtils.mkdirs(fileOutput.parentFile)
-                        if (dynamicCodeDir == "") {
-                            dynamicCodeDir = parseDir(fileOutput.absolutePath)
+                getFileList(directoryInput.getFile())
+                for (File fileInput : filelist) {
+                    File fileOutput = new File(fileInput.getAbsolutePath().replace(directoryInput.file.getAbsolutePath(), destDir.getAbsolutePath()))
+                    FileUtils.mkdirs(fileOutput.parentFile)
+                    if (dynamicCodeDir == "") {
+                        dynamicCodeDir = parseDir(fileOutput.absolutePath)
+                    }
+                    Map<File, Status> statusFiles = directoryInput.getChangedFiles()
+                    /**
+                     * 1、首先处理timer的要求，当前包名下的所有方法都会有耗时统计
+                     * 2、开启增量并且所属文件是在变化的文件列表中的
+                     * 3、BuildConfig的处理
+                     * 4、直接copy
+                     */
+                    if (mNeedTime && fileInput.absolutePath.contains(applicationId)) {
+                        InputStream is = new BufferedInputStream(new FileInputStream(fileInput))
+                        OutputStream os = new BufferedOutputStream(new FileOutputStream(fileOutput))
+                        ClassReader cr = new ClassReader(is)
+                        ClassWriter cw = new ClassWriter(0)
+                        cr.accept(new AsmTimerClassReviser(cw), ClassReader.EXPAND_FRAMES)
+                        os.write(cw.toByteArray())
+                        os.flush()
+                        os.close()
+                    } else if (isIncremental && statusFiles.containsKey(fileInput)) {
+                        Status status = (Status) statusFiles.get(fileInput)
+                        switch (status) {
+                            case Status.NOTCHANGED:
+                                break
+                            case Status.REMOVED:
+                                if(fileOutput.exists()) {
+                                    fileOutput.delete()
+                                }
+                                break
+                            case Status.ADDED:
+                            case Status.CHANGED:
+                                Files.copy(fileInput, fileOutput)
+                                break
                         }
-                        if (isIncremental && !fileInput.getName().endsWith('BuildConfig.class')) {
-                            Status status = fileInput.getStatus()
-                            switch (status) {
-                                case Status.NOTCHANGED:
-                                    break
-                                case Status.REMOVED:
-                                    if(fileOutput.exists()) {
-                                        fileOutput.delete()
-                                    }
-                                    break
-                                case Status.ADDED:
-                                case Status.CHANGED:
-                                    Files.copy(fileInput, fileOutput)
-                                    break
-                            }
-                        } else if (fileInput.getName().endsWith('BuildConfig.class')) {
-                            originBuildConfigFile = fileInput
-                            revisedBuildConfigFile = fileOutput
-
-                            // 进行ASM处理
-                            InputStream is = new BufferedInputStream(new FileInputStream(fileInput))
-                            OutputStream os = new BufferedOutputStream(new FileOutputStream(fileOutput))
-                            ClassReader cr = new ClassReader(is)
-                            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES)
-                            cr.accept(new AsmClassReviser(cw, mKey, mImplementation, mSensitives), 0)
-                            os.write(cw.toByteArray())
-                            os.flush()
-                            os.close()
-                        } else {
-                            Files.copy(fileInput, fileOutput)
-                        }
+                    } else if (fileInput.getName().endsWith('BuildConfig.class')) {
+                        // 进行ASM处理
+                        InputStream is = new BufferedInputStream(new FileInputStream(fileInput))
+                        OutputStream os = new BufferedOutputStream(new FileOutputStream(fileOutput))
+                        ClassReader cr = new ClassReader(is)
+                        ClassWriter cw = new ClassWriter(0)  //ClassWriter.COMPUTE_FRAMES
+                        cr.accept(new AsmClassReviser(cw, mKey, mImplementation, mSensitives), 0)
+                        os.write(cw.toByteArray())
+                        os.flush()
+                        os.close()
+                    } else {
+                        Files.copy(fileInput, fileOutput)
                     }
                 }
             }

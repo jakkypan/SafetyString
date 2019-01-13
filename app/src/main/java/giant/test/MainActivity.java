@@ -3,6 +3,8 @@ package giant.test;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Base64;
@@ -14,7 +16,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class MainActivity extends AppCompatActivity {
 
-    public static final String ONE = "love you!";
+    public static final String TWO = "love youiiiii2121!";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,28 +27,41 @@ public class MainActivity extends AppCompatActivity {
         for(Field field : fields ) {
             try {
                 Log.e("111", field.get(null).toString());
-            } catch (IllegalAccessException e) {
+            } catch (Throwable e) {
                 e.printStackTrace();
             }
         }
 
-//        Log.e("111", "======" + BuildConfig.ONE);
-
-
-        try {
-            PackageInfo info = getPackageManager().getPackageInfo(
-                    "giant.test",
-                    PackageManager.GET_SIGNATURES);
-            for (Signature signature : info.signatures) {
-                MessageDigest md = MessageDigest.getInstance("SHA");
-                md.update(signature.toByteArray());
-                String s = Base64.encodeToString(md.digest(), Base64.DEFAULT);
-                Log.e("111", s);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
-        } catch (PackageManager.NameNotFoundException e) {
+        }).start();
 
-        } catch (NoSuchAlgorithmException e) {
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                int i = 10;
+            }
+        }, 2000);
 
-        }
+        HandlerThread hd = new HandlerThread("_test_name_");hd.start();
+        new Handler(hd.getLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(1400);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        Log.e("111", "======" + BuildConfig.ONE);
     }
 }

@@ -21,6 +21,7 @@ android {
 apply plugin: 'ttpic-config-plugin'
 
 ttpicextend {
+    needtime = true
     key = 'testkey'
     implementation = 'com.ttpic.plugin.XorEncryption'
     sensitives = ["ONE", "love you!", "TWO", "hate you!", "IS_NOW", "this is test"]
